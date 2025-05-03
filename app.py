@@ -12,7 +12,7 @@ def summarize_text_gemini(text):
     if not text.strip():
         return "No hay texto disponible para resumir."
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.0-pro')
         # For long texts, consider breaking them into chunks if the model has input limits
         # This is a basic implementation, more advanced chunking might be needed
         prompt = f"""Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Analiza el siguiente texto y proporciona un resumen centrado en identificar estos productos y cualquier información relevante sobre ventas, ingresos o costos que pueda ayudar a determinar la rentabilidad.
