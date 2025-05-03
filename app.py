@@ -5,7 +5,7 @@ import google.generativeai as genai
 import os
 
 # Configure Gemini API
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+genai.configure(api_key="AIzaSyC9BPmAchT1rzsIQA1nvNKO531AENS8qm4")
 
 # Function to generate summary using Gemini
 def summarize_text_gemini(text):
@@ -51,6 +51,14 @@ if uploaded_file:
             st.error("Tipo de archivo no soportado.")
 
         if extracted_text:
+            st.subheader("Contenido del archivo:")
+            if file_extension in [".csv", ".xlsx", ".xls"]:
+                # Display DataFrame for tabular data
+                st.dataframe(df)
+            elif file_extension == ".pdf":
+                # Display extracted text for PDF
+                st.text(extracted_text)
+
             st.subheader(f"Análisis de Contenido de {uploaded_file.name}")
             # Use user prompt if provided, otherwise use a default prompt
             if user_prompt:
