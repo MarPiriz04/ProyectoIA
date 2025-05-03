@@ -1,3 +1,4 @@
+import dotenv
 import streamlit as st
 import pandas as pd
 import pypdf
@@ -5,14 +6,15 @@ import google.generativeai as genai
 import os
 
 # Configure Gemini API
-genai.configure(api_key="AIzaSyC9BPmAchT1rzsIQA1nvNKO531AENS8qm4")
+dotenv.load_dotenv()
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 
 # Function to generate summary using Gemini
 def summarize_text_gemini(text):
     if not text.strip():
         return "No hay texto disponible para resumir."
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-pro-latest')
         # For long texts, consider breaking them into chunks if the model has input limits
         # This is a basic implementation, more advanced chunking might be needed
         prompt = f"""Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Analiza el siguiente texto y proporciona un resumen centrado en identificar estos productos y cualquier información relevante sobre ventas, ingresos o costos que pueda ayudar a determinar la rentabilidad.
