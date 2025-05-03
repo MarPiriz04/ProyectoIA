@@ -32,92 +32,75 @@ Texto a analizar:
     except Exception as e:
         return f"Error al generar resumen con Gemini: {e}"
 
-st.title("Generador de Informes de Archivos con IA")
+st.title("Analista de Rentabilidad")
 
-uploaded_file = st.file_uploader("Cargar un archivo (CSV, PDF o Imagen)", type=["csv", "pdf", "png", "jpg", "jpeg"])
+uploaded_files = st.file_uploader("Cargar imágenes para análisis", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
-if uploaded_file is not None:
-    file_type = uploaded_file.type
-
-    st.write(f"Procesando {uploaded_file.name} ({file_type})")
-
-    if file_type == "text/csv":
-        try:
-            # Read CSV
-            df = pd.read_csv(uploaded_file)
-            st.subheader("Contenido del CSV (Primeras 5 filas)")
-            st.write(df.head())
-
-            st.subheader("Análisis del CSV")
-            st.write("Estadísticas Básicas:")
-            st.write(df.describe())
-
-            # Simple trend identification (example: correlation matrix)
-            if df.select_dtypes(include=['number']).shape[1] > 1:
-                st.write("Matriz de Correlación:")
-                st.write(df.corr())
-
-            # Summarize the content (using a string representation of the dataframe)
-            st.subheader("Resumen del CSV (IA)")
-            csv_summary_text = df.to_string()
-            summary = summarize_text_gemini(csv_summary_text)
-            st.write(summary)
-
-
-        except Exception as e:
-            st.error(f"Error al leer el archivo CSV: {e}")
-
-    elif file_type == "application/pdf":
-        st.subheader("Contenido del PDF")
-        try:
-            reader = pypdf.PdfReader(uploaded_file)
-            pdf_text = ""
-            for page_num in range(len(reader.pages)):
-                pdf_text += reader.pages[page_num].extract_text()
-
-            st.text_area("Texto Extraído", pdf_text, height=300)
-
-            st.subheader("Análisis del PDF (IA)")
-            # Summarize the extracted text
-            pdf_summary = summarize_text_gemini(pdf_text)
-            st.write("Resumen:")
-            st.write(pdf_summary)
-
-            # TODO: Add entity extraction for PDF
-
-        except Exception as e:
-            st.error(f"Error al leer el archivo PDF: {e}")
-
-    elif file_type.startswith("image/"):
-        try:
-            # Read Image
-            img = Image.open(uploaded_file)
-            st.subheader("Imagen Cargada")
-            st.image(img, caption=uploaded_file.name, use_column_width=True)
-
-            st.subheader("Análisis de Imagen (IA)")
-            # Perform OCR
-            try:
-                image_text = pytesseract.image_to_string(img)
-                st.write("Texto Extraído (OCR):")
-                st.text_area("Texto OCR", image_text, height=200)
-
-                # Summarize the extracted text
-                image_summary = summarize_text_gemini(image_text)
-                st.write("Resumen del Texto Extraído:")
-                st.write(image_summary)
-
-            except pytesseract.TesseractNotFoundError:
-                st.error("Tesseract no está instalado o no se encuentra en tu PATH. Por favor, instala Tesseract OCR.")
-            except Exception as e:
-                st.error(f"Error durante el OCR: {e}")
-
-
-            # TODO: Add image content description (requires a different model)
-
-
-        except Exception as e:
-            st.error(f"Error al leer el archivo de imagen: {e}")
-
+if uploaded_files:
+    if len(uploaded_files) > 2:
+        st.warning("Por favor, carga un máximo de 2 imágenes.")
     else:
-        st.warning(f"Tipo de archivo no compatible: {file_type}")
+        image_texts = []
+        image_summaries = []
+        image_names = []
+
+        for uploaded_file in uploaded_files:
+            image_names.append(uploaded_file.name)
+            st.write(f"Procesando {uploaded_file.name}")
+            try:
+                img = Image.open(uploaded_file)
+                st.subheader(f"Imagen Cargada: {uploaded_file.name}")
+                st.image(img, caption=uploaded_file.name, use_column_width=True)
+
+                st.subheader(f"Análisis de Imagen (IA) para {uploaded_file.name}")
+                try:
+                    image_text = pytesseract.image_to_string(img)
+                    image_texts.append(image_text)
+                    st.write("Texto Extraído (OCR):")
+                    st.text_area(f"Texto OCR para {uploaded_file.name}", image_text, height=200)
+
+                    image_summary = summarize_text_gemini(image_text)
+                    image_summaries.append(image_summary)
+                    st.write("Resumen del Texto Extraído:")
+                    st.write(image_summary)
+
+                except pytesseract.TesseractNotFoundError:
+                    st.error("Tesseract no está instalado o no se encuentra en tu PATH. Por favor, instala Tesseract OCR.")
+                    image_texts.append("") # Append empty string to maintain list length
+                    image_summaries.append(f"Error: Tesseract no instalado para {uploaded_file.name}")
+                except Exception as e:
+                    st.error(f"Error durante el OCR para {uploaded_file.name}: {e}")
+                    image_texts.append("") # Append empty string to maintain list length
+                    image_summaries.append(f"Error durante el OCR para {uploaded_file.name}: {e}")
+
+            except Exception as e:
+                st.error(f"Error al leer el archivo de imagen {uploaded_file.name}: {e}")
+                image_texts.append("") # Append empty string to maintain list length
+                image_summaries.append(f"Error al leer el archivo de imagen {uploaded_file.name}: {e}")
+
+
+        # Perform cross-analysis if two images are uploaded
+        if len(image_texts) == 2 and all(image_texts):
+            st.subheader("Análisis Cruzado de Imágenes (IA)")
+            combined_text = f"Texto de la primera imagen ({image_names[0]}):\n{image_texts[0]}\n\nTexto de la segunda imagen ({image_names[1]}):\n{image_texts[1]}"
+
+            cross_analysis_prompt = f"""Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Compara y contrasta la información de ventas, ingresos o costos presente en los siguientes dos textos extraídos de imágenes. Identifica similitudes, diferencias, tendencias o cualquier otra información relevante que pueda ayudar a determinar qué productos son los más vendidos y rentables basándote en ambos textos.
+
+Texto de la primera imagen ({image_names[0]}):
+{image_texts[0]}
+
+Texto de la segunda imagen ({image_names[1]}):
+{image_texts[1]}
+"""
+            try:
+                model = genai.GenerativeModel('gemini-pro')
+                cross_analysis_result = model.generate_content(cross_analysis_prompt)
+                st.write("Resultado del Análisis Cruzado:")
+                st.write(cross_analysis_result.text)
+            except Exception as e:
+                st.error(f"Error al generar el análisis cruzado con Gemini: {e}")
+
+        elif len(image_texts) == 2 and (not all(image_texts)):
+             st.warning("No se puede realizar el análisis cruzado porque no se pudo extraer texto de ambas imágenes.")
+        elif len(image_texts) == 1:
+             st.info("Carga otra imagen para realizar un análisis cruzado.")
