@@ -25,7 +25,7 @@ Texto a analizar:
     except Exception as e:
         return f"Error al generar resumen con Gemini: {e}"
 
-st.title("Analista de Rentabilidad")
+st.title("Analisis de rentabilidad")
 
 uploaded_file = st.file_uploader("Cargar archivo para análisis", type=["csv", "xlsx", "xls", "application/pdf"])
 
@@ -52,13 +52,18 @@ if uploaded_file:
 
         if extracted_text:
             st.subheader(f"Análisis de Contenido de {uploaded_file.name}")
-            # Combine user prompt with extracted text for summarization
-            analysis_prompt = user_prompt if user_prompt else """Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Analiza el siguiente texto extraído de un documento y proporciona un resumen centrado en identificar estos productos y cualquier información relevante sobre ventas, ingresos o costos que pueda ayudar a determinar la rentabilidad.
+            # Use user prompt if provided, otherwise use a default prompt
+            if user_prompt:
+                # Combine user prompt with extracted text
+                full_prompt = f"{user_prompt}\n\nTexto a analizar:\n{extracted_text}"
+            else:
+                # Use default prompt if no user prompt is provided
+                default_prompt = """Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Analiza el siguiente texto extraído de un documento y proporciona un resumen centrado en identificar estos productos y cualquier información relevante sobre ventas, ingresos o costos que pueda ayudar a determinar la rentabilidad.
 
 Texto a analizar:
 {text}
 """
-            full_prompt = analysis_prompt.replace("{text}", extracted_text)
+                full_prompt = default_prompt.replace("{text}", extracted_text)
 
             summary = summarize_text_gemini(full_prompt)
             st.write("Resultado del Análisis:")
