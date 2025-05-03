@@ -1,3 +1,4 @@
+st.set_page_config(page_title="VERACIERTO-AI")
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
@@ -17,6 +18,7 @@ else:
     genai.configure(api_key=GEMINI_API_KEY)
     model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
+st.title("VERACIERTO-AI")
 # Validar URLs
 def is_valid_url(url):
     regex = re.compile(
