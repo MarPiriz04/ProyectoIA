@@ -1,4 +1,3 @@
-st.set_page_config(page_title="VERACIERTO-AI")
 import streamlit as st
 import pandas as pd
 import google.generativeai as genai
