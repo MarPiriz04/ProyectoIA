@@ -47,7 +47,7 @@ if uploaded_files:
             try:
                 img = Image.open(uploaded_file)
                 st.subheader(f"Imagen Cargada: {uploaded_file.name}")
-                st.image(img, caption=uploaded_file.name, use_column_width=True)
+                st.image(img, caption=uploaded_file.name, use_container_width=True)
 
                 st.subheader(f"Análisis de Imagen (IA) para {uploaded_file.name}")
                 try:
