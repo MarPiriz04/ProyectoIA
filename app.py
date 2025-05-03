@@ -17,102 +17,107 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 # Function to generate summary using Gemini
 def summarize_text_gemini(text):
     if not text.strip():
-        return "No text available to summarize."
+        return "No hay texto disponible para resumir."
     try:
         model = genai.GenerativeModel('gemini-pro')
         # For long texts, consider breaking them into chunks if the model has input limits
         # This is a basic implementation, more advanced chunking might be needed
-        response = model.generate_content(f"Summarize the following text:\n\n{text}")
+        prompt = f"""Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Analiza el siguiente texto y proporciona un resumen centrado en identificar estos productos y cualquier información relevante sobre ventas, ingresos o costos que pueda ayudar a determinar la rentabilidad.
+
+Texto a analizar:
+{text}
+"""
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"Error generating summary with Gemini: {e}"
+        return f"Error al generar resumen con Gemini: {e}"
 
-st.title("AI-Powered File Report Generator")
+st.title("Generador de Informes de Archivos con IA")
 
-uploaded_file = st.file_uploader("Upload a file (CSV, PDF, or Image)", type=["csv", "pdf", "png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("Cargar un archivo (CSV, PDF o Imagen)", type=["csv", "pdf", "png", "jpg", "jpeg"])
 
 if uploaded_file is not None:
     file_type = uploaded_file.type
 
-    st.write(f"Processing {uploaded_file.name} ({file_type})")
+    st.write(f"Procesando {uploaded_file.name} ({file_type})")
 
     if file_type == "text/csv":
         try:
             # Read CSV
             df = pd.read_csv(uploaded_file)
-            st.subheader("CSV Content (First 5 rows)")
+            st.subheader("Contenido del CSV (Primeras 5 filas)")
             st.write(df.head())
 
-            st.subheader("CSV Analysis")
-            st.write("Basic Statistics:")
+            st.subheader("Análisis del CSV")
+            st.write("Estadísticas Básicas:")
             st.write(df.describe())
 
             # Simple trend identification (example: correlation matrix)
             if df.select_dtypes(include=['number']).shape[1] > 1:
-                st.write("Correlation Matrix:")
+                st.write("Matriz de Correlación:")
                 st.write(df.corr())
 
             # Summarize the content (using a string representation of the dataframe)
-            st.subheader("CSV Summary (AI)")
+            st.subheader("Resumen del CSV (IA)")
             csv_summary_text = df.to_string()
             summary = summarize_text_gemini(csv_summary_text)
             st.write(summary)
 
 
         except Exception as e:
-            st.error(f"Error reading CSV file: {e}")
+            st.error(f"Error al leer el archivo CSV: {e}")
 
     elif file_type == "application/pdf":
-        st.subheader("PDF Content")
+        st.subheader("Contenido del PDF")
         try:
             reader = pypdf.PdfReader(uploaded_file)
             pdf_text = ""
             for page_num in range(len(reader.pages)):
                 pdf_text += reader.pages[page_num].extract_text()
 
-            st.text_area("Extracted Text", pdf_text, height=300)
+            st.text_area("Texto Extraído", pdf_text, height=300)
 
-            st.subheader("PDF Analysis (AI)")
+            st.subheader("Análisis del PDF (IA)")
             # Summarize the extracted text
             pdf_summary = summarize_text_gemini(pdf_text)
-            st.write("Summary:")
+            st.write("Resumen:")
             st.write(pdf_summary)
 
             # TODO: Add entity extraction for PDF
 
         except Exception as e:
-            st.error(f"Error reading PDF file: {e}")
+            st.error(f"Error al leer el archivo PDF: {e}")
 
     elif file_type.startswith("image/"):
         try:
             # Read Image
             img = Image.open(uploaded_file)
-            st.subheader("Uploaded Image")
+            st.subheader("Imagen Cargada")
             st.image(img, caption=uploaded_file.name, use_column_width=True)
 
-            st.subheader("Image Analysis (AI)")
+            st.subheader("Análisis de Imagen (IA)")
             # Perform OCR
             try:
                 image_text = pytesseract.image_to_string(img)
-                st.write("Extracted Text (OCR):")
-                st.text_area("OCR Text", image_text, height=200)
+                st.write("Texto Extraído (OCR):")
+                st.text_area("Texto OCR", image_text, height=200)
 
                 # Summarize the extracted text
                 image_summary = summarize_text_gemini(image_text)
-                st.write("Summary of Extracted Text:")
+                st.write("Resumen del Texto Extraído:")
                 st.write(image_summary)
 
             except pytesseract.TesseractNotFoundError:
-                st.error("Tesseract is not installed or not in your PATH. Please install Tesseract OCR.")
+                st.error("Tesseract no está instalado o no se encuentra en tu PATH. Por favor, instala Tesseract OCR.")
             except Exception as e:
-                st.error(f"Error during OCR: {e}")
+                st.error(f"Error durante el OCR: {e}")
 
 
             # TODO: Add image content description (requires a different model)
 
 
         except Exception as e:
-            st.error(f"Error reading image file: {e}")
+            st.error(f"Error al leer el archivo de imagen: {e}")
 
     else:
-        st.warning(f"Unsupported file type: {file_type}")
+        st.warning(f"Tipo de archivo no compatible: {file_type}")
