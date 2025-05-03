@@ -125,12 +125,12 @@ if data_type != "none" and not df.empty:
                 response = model.generate_content(contents)
                 informe = response.text
                 st.write("## Informe de Análisis de Ventas Generado")
-                st.caption("Informe generado por CAT-AI")
+                st.caption("Informe generado por Veracierto AI")
                 st.markdown(informe)
 
                 # Guardar como Word
                 doc = Document()
-                doc.add_heading('Informe Generado por CAT-AI', 0)
+                doc.add_heading('Informe Generado por Veracierto AI', 0)
                 for line in informe.splitlines():
                     doc.add_paragraph(line)
                 buffer = BytesIO()
