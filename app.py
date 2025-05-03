@@ -4,15 +4,10 @@ from PIL import Image
 import io
 import pypdf
 import google.generativeai as genai
-import pytesseract
 import os
 
 # Configure Gemini API
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# Configure pytesseract (you might need to change the path to the tesseract executable)
-# For Windows, you might need to install Tesseract separately and provide the path
-# pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 # Function to generate summary using Gemini
 def summarize_text_gemini(text):
@@ -36,6 +31,8 @@ st.title("Analista de Rentabilidad")
 
 uploaded_files = st.file_uploader("Cargar imágenes para análisis", type=["png", "jpg", "jpeg"], accept_multiple_files=True)
 
+user_prompt = st.text_area("Prompt Adicional (Opcional)", height=100)
+
 if uploaded_files:
     if len(uploaded_files) > 2:
         st.warning("Por favor, carga un máximo de 2 imágenes.")
@@ -54,53 +51,64 @@ if uploaded_files:
 
                 st.subheader(f"Análisis de Imagen (IA) para {uploaded_file.name}")
                 try:
-                    image_text = pytesseract.image_to_string(img)
-                    image_texts.append(image_text)
-                    st.write("Texto Extraído (OCR):")
-                    st.text_area(f"Texto OCR para {uploaded_file.name}", image_text, height=200)
+                    # Use Gemini Vision model for image analysis
+                    vision_model = genai.GenerativeModel('gemini-pro-vision')
+                    
+                    # Prepare the image for the model
+                    img_byte_arr = io.BytesIO()
+                    img.save(img_byte_arr, format=img.format)
+                    img_byte_arr = img_byte_arr.getvalue()
 
-                    image_summary = summarize_text_gemini(image_text)
-                    image_summaries.append(image_summary)
-                    st.write("Resumen del Texto Extraído:")
-                    st.write(image_summary)
+                    image_parts = [
+                        {
+                            "mime_type": uploaded_file.type,
+                            "data": img_byte_arr
+                        }
+                    ]
 
-                except pytesseract.TesseractNotFoundError:
-                    st.error("Tesseract no está instalado o no se encuentra en tu PATH. Por favor, instala Tesseract OCR.")
-                    image_texts.append("") # Append empty string to maintain list length
-                    image_summaries.append(f"Error: Tesseract no instalado para {uploaded_file.name}")
+                    # Determine which prompt to use
+                    current_image_prompt = user_prompt if user_prompt else """Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Analiza la siguiente imagen y extrae cualquier información relevante sobre ventas, ingresos, costos o productos que pueda ayudar a determinar la rentabilidad. Presenta la información extraída de forma clara.
+"""
+                    
+                    response = vision_model.generate_content([current_image_prompt, image_parts[0]])
+                    image_analysis_result = response.text
+                    image_texts.append(image_analysis_result) # Store the analysis result as text
+                    st.write("Resultado del Análisis de Imagen:")
+                    st.write(image_analysis_result)
+
                 except Exception as e:
-                    st.error(f"Error durante el OCR para {uploaded_file.name}: {e}")
-                    image_texts.append("") # Append empty string to maintain list length
-                    image_summaries.append(f"Error durante el OCR para {uploaded_file.name}: {e}")
+                    st.error(f"Error durante el análisis de imagen con Gemini para {uploaded_file.name}: {e}")
+                    image_texts.append(f"Error durante el análisis de imagen con Gemini para {uploaded_file.name}: {e}")
+
 
             except Exception as e:
                 st.error(f"Error al leer el archivo de imagen {uploaded_file.name}: {e}")
-                image_texts.append("") # Append empty string to maintain list length
-                image_summaries.append(f"Error al leer el archivo de imagen {uploaded_file.name}: {e}")
+                image_texts.append(f"Error al leer el archivo de imagen {uploaded_file.name}: {e}")
 
 
-        # Perform cross-analysis if two images are uploaded
-        if len(image_texts) == 2 and all(image_texts):
+        # Perform cross-analysis if two images are uploaded and analysis was successful for both
+        if len(image_texts) == 2 and not any("Error" in text for text in image_texts):
             st.subheader("Análisis Cruzado de Imágenes (IA)")
-            combined_text = f"Texto de la primera imagen ({image_names[0]}):\n{image_texts[0]}\n\nTexto de la segunda imagen ({image_names[1]}):\n{image_texts[1]}"
+            combined_analysis_results = f"Análisis de la primera imagen ({image_names[0]}):\n{image_texts[0]}\n\nAnálisis de la segunda imagen ({image_names[1]}):\n{image_texts[1]}"
 
-            cross_analysis_prompt = f"""Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Compara y contrasta la información de ventas, ingresos o costos presente en los siguientes dos textos extraídos de imágenes. Identifica similitudes, diferencias, tendencias o cualquier otra información relevante que pueda ayudar a determinar qué productos son los más vendidos y rentables basándote en ambos textos.
+            # Determine which prompt to use for cross-analysis
+            current_cross_analysis_prompt = user_prompt if user_prompt else f"""Actúa como un gerente comercial experto en identificar los productos con más ventas y mayor rentabilidad. Compara y contrasta los resultados de análisis de las siguientes dos imágenes. Identifica similitudes, diferencias, tendencias o cualquier otra información relevante que pueda ayudar a determinar qué productos son los más vendidos y rentables basándote en ambos análisis.
 
-Texto de la primera imagen ({image_names[0]}):
+Análisis de la primera imagen ({image_names[0]}):
 {image_texts[0]}
 
-Texto de la segunda imagen ({image_names[1]}):
+Análisis de la segunda imagen ({image_names[1]}):
 {image_texts[1]}
 """
             try:
                 model = genai.GenerativeModel('gemini-pro')
-                cross_analysis_result = model.generate_content(cross_analysis_prompt)
+                cross_analysis_result = model.generate_content(current_cross_analysis_prompt)
                 st.write("Resultado del Análisis Cruzado:")
                 st.write(cross_analysis_result.text)
             except Exception as e:
                 st.error(f"Error al generar el análisis cruzado con Gemini: {e}")
 
-        elif len(image_texts) == 2 and (not all(image_texts)):
-             st.warning("No se puede realizar el análisis cruzado porque no se pudo extraer texto de ambas imágenes.")
+        elif len(image_texts) == 2 and any("Error" in text for text in image_texts):
+             st.warning("No se puede realizar el análisis cruzado debido a errores en el análisis de una o ambas imágenes.")
         elif len(image_texts) == 1:
              st.info("Carga otra imagen para realizar un análisis cruzado.")
